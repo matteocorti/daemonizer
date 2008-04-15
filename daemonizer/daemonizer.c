@@ -92,23 +92,26 @@ char *logtime (
  */
 int main ( int argc, char ** argv ) {
 
-  /* the program to daemonize: full path */
-  char *  program_path = NULL;
-  
   /* the program to daemonize */
   char *  program  = NULL;
 
   /* the list of command line arguments */
   char ** arguments = NULL;
+
+  /* number of command line arguments */
+  int     arguments_number = 0;
   
   /* the optional log file */
   char * log_file = "/var/log/daemonizer";
 
+  /* the search path */
+  char * path     = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin";
+  
   /* helper variable for the command line options processing */
   int    c;
 
-  /* temporary string pointer: used to hold the result of basename and dirname */
-  char *tmp_string;
+  /* generic counter */
+  int   i;
   
   /* Process command line options */
   
@@ -140,7 +143,7 @@ int main ( int argc, char ** argv ) {
 
     case 'h':
       usage();
-      exit(0);
+      exit(EXIT_SUCCESS);
 
     case 'l':
       log_file = optarg;
@@ -160,46 +163,42 @@ int main ( int argc, char ** argv ) {
 
   }
 
+  /* Check the number of arguments */
+  
   if ((argc - optind) < 1) {
     fprintf(stderr, "Error: No program specified\n");
     usage();
     exit(EXIT_FAILURE);
   }
 
-  program_path = malloc(strlen(argv[optind]));
-  if (!program_path) {
-    perror("Out of memory\n");
-    exit(EXIT_FAILURE);
-  }
-  strcpy(program_path, argv[optind++]);
-
-  while (argc > optind) {
-    arguments = argv[optind];
-  }
-
-  /* extract the base name (w/o path) and save it */
-  tmp_string = basename(program_path);
-  program = malloc(strlen(tmp_string));
+  program = malloc(strlen(argv[optind]));
   if (!program) {
     fprintf(stderr, "Error: Out of memory\n");
     exit(EXIT_FAILURE);
   }
-  strcpy(program, tmp_string);
+  strcpy(program, argv[optind++]);
 
-  tmp_string = dirname(program_path);
-  program_path = malloc(strlen(tmp_string));
-  if (!program_path) {
-    fprintf(stderr, "Error: Out of memory\n");
-    exit(EXIT_FAILURE);
+  if (argc > optind) {
+    /* the program has to be called with some command line arguments */
+    arguments        = &(argv[optind]);
+    arguments_number = argc - optind;    
   }
-  program_path = strcpy(program_path, tmp_string);
   
   if (verbose_flag) {
-    printf("Daemonizing %s\n", program);
-    printf("Logging to %s\n",  log_file);
+    
+    printf("Daemonizing: %s\n", program);
+    
+    if (arguments) {
+      printf("  with %i command line arguments:", arguments_number);
+      for (i=0; i < arguments_number; i++) {
+        printf(" |%s|", arguments[i]);
+      }
+    }
+    printf("\n");
+    
+    printf("Logging to:  %s\n",  log_file);
   }
-  
-  int rv;
+
   int flags;
   int status;
   long open_max;
@@ -339,15 +338,7 @@ int main ( int argc, char ** argv ) {
         exit (EXIT_FAILURE);
       }
 #endif
-      rv = snprintf (ts, sizeof (ts),
-                     "/%s:/%s:/%s:/%s:/%s:/%s", "sbin", "bin",
-                     "usr/sbin", "usr/bin", "usr/local/sbin", "usr/local/bin");
-      if (rv >= sizeof (ts)) {
-        errno = EOVERFLOW;
-        printf ("failure building PATH: %s\n", strerror (errno));
-        exit (EXIT_FAILURE);
-      }
-      if (setenv ("PATH", ts, 1) < 0) {
+      if (setenv ("PATH", path, 1) < 0) {
         printf ("failure setting PATH: %s\n", strerror (errno));
         exit (EXIT_FAILURE);
       }
@@ -363,14 +354,9 @@ int main ( int argc, char ** argv ) {
                 strerror (errno));
         exit (EXIT_FAILURE);
       }
-      rv = snprintf (ts, sizeof (ts), "%s/%s", program_path, program);
-      if (rv >= sizeof (ts)) {
-        errno = EOVERFLOW;
-        printf ("failure building XC path and file: %s\n", strerror (errno));
-        exit (EXIT_FAILURE);
-      }
-      if (execlp (ts, program_path, NULL) < 0) {
-        printf ("failure starting %s: %s\n", ts, strerror (errno));
+      fprintf(stderr, "execvP(%s, %s, %s, ...)\n", program, path, *arguments);
+      if (execvP(program, ts, arguments) < 0) {
+        printf ("failure starting %s: %s\n", program, strerror (errno));
         exit (EXIT_FAILURE);
       }
       exit (EXIT_SUCCESS);
