@@ -15,7 +15,6 @@
   Define symbols and (words)
   XC ...........  eXeCutable
   rv ...........  return value
-  tx ...........  temporary index
   ts ...........  temporary string
 */
 
@@ -23,7 +22,6 @@
 
 #define LOGTIME(ts) logtime ((ts), sizeof ((ts)))
 
-static int verbose_flag = FALSE; /**< command line argument: verbose output */
 static int version_flag = FALSE; /**< command line argument: version        */
 
 /**
@@ -37,21 +35,22 @@ void usage() {
   printf("Options\n");
   printf(" -h, --help         show this help screen\n");
   printf(" -l, --log          log file\n");
-  printf(" -v, --verbose      increase verbosity\n");
   printf("     --version      prints the program version and exits\n");
   printf("\nPlease see the %s(1) man page for full documentation\n\n", PACKAGE_NAME);
 
 }
 
-void catchsig (
-               int sn
-               ) {
-  printf ("Caught signal %d\n", sn);
+/** Default signal handler
+ * @param   number  signal number
+ */
+void catchsig ( int signal_number ) {
+  printf ("Caught signal %d\n", signal_number);
   fflush (NULL);
-  if (sn == SIGSEGV) {
+  if (signal_number == SIGSEGV) {
     exit (EXIT_FAILURE);
   }
 }
+
 
 char *logtime (
                char *ts,
@@ -110,16 +109,30 @@ int main ( int argc, char ** argv ) {
   /* helper variable for the command line options processing */
   int    c;
 
-  /* generic counter */
-  int   i;
+  /* process ID: used to store the return value of fork */
+  pid_t pid;
+
+  /* process status (written by wait(2) */
+  int status;
+
+  /* generic file descriptor */
+  uint32_t fd;
+
+  int flags;
+  long open_max;
+  mode_t mode;
+  char **ev;
+  extern char **environ;
+  char ts[512];
+  struct flock mylock;
+  struct sigaction signow;
   
   /* Process command line options */
-  
+
   while (TRUE) {
 
     static struct option long_options[] = {
       {"log",         required_argument, NULL, 'l'},
-      {"verbose",     no_argument,       NULL, 'v'},
       {"version",     no_argument,       &version_flag, TRUE},
       {"help",        no_argument,       NULL, 'h'},
       {NULL, 0, NULL, 0}
@@ -128,7 +141,7 @@ int main ( int argc, char ** argv ) {
     /* getopt_long stores the option index here. */
     int option_index = 0;
      
-    c = getopt_long (argc, argv, "hvl:",
+    c = getopt_long (argc, argv, "hl:",
 		     long_options, &option_index);
     
     /* Detect the end of the options. */
@@ -136,11 +149,7 @@ int main ( int argc, char ** argv ) {
       break;
      
     switch (c) {
-
-    case 'v':
-      verbose_flag = TRUE;
-      break;
-
+      
     case 'h':
       usage();
       exit(EXIT_SUCCESS);
@@ -178,63 +187,59 @@ int main ( int argc, char ** argv ) {
   }
   strcpy(program, argv[optind++]);
 
+  /* build the argument list */
+
   if (argc > optind) {
-    /* the program has to be called with some command line arguments */
-    arguments        = &(argv[optind]);
+    /* the program has to be called with some command line arguments *
+     * (the first param, arguments[0] is the program itself)         */
+    arguments        = &(argv[optind-1]);
     arguments_number = argc - optind;    
   }
-  
-  if (verbose_flag) {
-    
-    printf("Daemonizing: %s\n", program);
-    
-    if (arguments) {
-      printf("  with %i command line arguments:", arguments_number);
-      for (i=0; i < arguments_number; i++) {
-        printf(" |%s|", arguments[i]);
-      }
-    }
-    printf("\n");
-    
-    printf("Logging to:  %s\n",  log_file);
-  }
-
-  int flags;
-  int status;
-  long open_max;
-  pid_t pid;
-  mode_t mode;
-  uint32_t tx;
-  char **ev;
-  extern char **environ;
-  char ts[512];
-  struct flock mylock;
-  struct sigaction signow;  
-    
+      
   errno = 0;
+  
   pid = fork ();
+  
   if (pid < 0) {
+    
     perror ("failure creating 1st child");
     exit (EXIT_FAILURE);
+    
   } else if (pid > 0) {
+    
     if (wait (&status) < 0) {
       perror ("failure waiting for 1st child");
       exit (EXIT_FAILURE);
     }
     _exit (EXIT_SUCCESS);
+    
   } else {
+
+    /* create a new session (see setsid(2)) */
+    
     if (setsid () < 0) {
       perror ("failure starting new session");
       exit (EXIT_FAILURE);
     }
+    
     pid = fork ();
+    
     if (pid < 0) {
+      
       perror ("failure creating 2nd child");
       exit (EXIT_FAILURE);
+      
     } else if (pid > 0) {
+      
       _exit (EXIT_SUCCESS);
+      
     } else {
-      umask (00022);
+
+      /* set the umask: write access for the owner only 022 */
+      umask ( S_IWGRP | S_IWOTH );
+
+      /* signal handlers */
+      
       signow.sa_handler = catchsig;
       sigemptyset (&signow.sa_mask);
       signow.sa_flags = 0;
@@ -254,34 +259,43 @@ int main ( int argc, char ** argv ) {
         perror ("failure initializing SIGSEGV handler");
         exit (EXIT_FAILURE);
       }
-      if (chdir ("/") < 0) {
-        perror ("failure changing working directory");
-        exit (EXIT_FAILURE);
-      }
+
+      /* get the maximum number of open files per user id */
       if ((open_max = sysconf (_SC_OPEN_MAX)) < 0) {
         perror ("failure querying _SC_OPEN_MAX");
         exit (EXIT_FAILURE);
       }
-      for (tx = 3; tx < open_max; tx++) {
-        if (close (tx) < 0) {
-          if (errno == EBADF)
+
+      /* close all the possible file descriptors */
+      for (fd = 3; fd < open_max; fd++) {
+        if (close (fd) < 0) {
+          if (errno == EBADF) {
+            /* bad file descriptor */
             continue;
-          printf ("fd = %u\n", (unsigned int) tx);
+          }
+          printf ("fd = %u\n", (unsigned int) fd);
           perror ("failure closing file");
           exit (EXIT_FAILURE);
         }
       }
+      
       errno = 0;
+
+      /* close STDOUT */
       if (close (STDOUT_FILENO) < 0) {
         perror ("failure closing STDOUT");
         exit (EXIT_FAILURE);
       }
-      flags = O_WRONLY | O_CREAT;
-      mode  = S_IRUSR | S_IWUSR | S_IRGRP;
+
+      /* open standard out to the log file */
+      flags = O_WRONLY | O_APPEND | O_CREAT;
+      mode  = S_IRUSR  | S_IWUSR | S_IRGRP;
       if (open (log_file, flags, mode) != STDOUT_FILENO) {
         fprintf (stderr, "failure opening STDOUT to %s\n", log_file);
         exit (EXIT_FAILURE);
       }
+
+      /* lock the log file */
       mylock.l_type = F_WRLCK;
       mylock.l_whence = SEEK_SET;
       mylock.l_start = 0;
@@ -291,61 +305,76 @@ int main ( int argc, char ** argv ) {
         perror ("failure locking LOGFILE");
         exit (EXIT_FAILURE);
       }
-      if (ftruncate (STDOUT_FILENO, 0) < 0) {
-        perror ("failure clearing LOGFILE");
-        exit (EXIT_FAILURE);
-      }
-      if (lseek (STDOUT_FILENO, 0, SEEK_SET) != 0) {
-        perror ("failure initializing LOGFILE");
-        exit (EXIT_FAILURE);
-      }
+
+      /* open STDOUT for append */
       if (!fdopen (STDOUT_FILENO, "a")) {
         perror ("failure opening STDOUT stream");
         exit (EXIT_FAILURE);
       }
+
+      /* close STDERR */
       if (close (STDERR_FILENO) < 0) {
         printf ("failure closing STDERR: %s\n", strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      /* open STDERR to the log file */
       if (dup2 (STDOUT_FILENO, STDERR_FILENO) != STDERR_FILENO) {
         printf ("failure opening STDERR to LOGFILE: %s\n",
                 strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      /* open STDERR for append */
       if (!fdopen (STDERR_FILENO, "a")) {
         printf ("failure opening STDERR stream: %s\n",
                 strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      /* close STDIN */
       if (close (STDIN_FILENO) < 0) {
         printf ("failure closing STDIN: %s\n", strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      /* /dev/null to STDIN */
       if (open ("/dev/null", O_RDONLY) != STDIN_FILENO) {
         printf ("failure opening STDIN to /dev/null: %s\n",
                 strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      /* log: success */
       printf ("%s success starting pid %d\n", LOGTIME (ts), getpid ());
+
+      /* flush all open output streams */
       if (fflush (NULL) < 0) {
         printf ("failure flushing STDIO stream: %s\n",
                 strerror (errno));
         exit (EXIT_FAILURE);
       }
-#ifdef HAVE_CLEARENV            
+      
+#ifdef HAVE_CLEARENV
       if (clearenv () != 0) {
         printf ("failure clearing environment\n");
         exit (EXIT_FAILURE);
       }
 #endif
+
+      /* set the PATH environment variable */
       if (setenv ("PATH", path, 1) < 0) {
         printf ("failure setting PATH: %s\n", strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      /* set the shell */
       if (setenv ("SHELL", "/bin/sh", 1) < 0) {
         printf ("failure setting SHELL: %s\n", strerror (errno));
         exit (EXIT_FAILURE);
       }
+
+      
       for (ev = environ; ev && *ev; ev++) {
         printf ("%s %s\n", LOGTIME (ts), *ev);
       }
@@ -354,8 +383,8 @@ int main ( int argc, char ** argv ) {
                 strerror (errno));
         exit (EXIT_FAILURE);
       }
-      fprintf(stderr, "execvP(%s, %s, %s, ...)\n", program, path, *arguments);
-      if (execvP(program, ts, arguments) < 0) {
+
+      if (execvp(program, arguments) < 0) {
         printf ("failure starting %s: %s\n", program, strerror (errno));
         exit (EXIT_FAILURE);
       }
