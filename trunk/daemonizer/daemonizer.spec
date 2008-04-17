@@ -1,8 +1,8 @@
-%define version @PACKAGE_VERSION@
+%define version 0.9.0
 %define release 0
 %define name    daemonizer
 
-Summary:   daemonizer is a program to start a process and detach it from the terminal
+Summary:   daemonizer is program to start a process and detach it from the terminal
 Name:      %{name}
 Version:   %{version}
 Release:   %{release}
@@ -13,7 +13,7 @@ BuildRoot: %{_tmppath}/%{name}-%{version}-root
 Source:    %{name}-%{version}.tar.gz
 
 %description
-daemonizer is a program to start a process and detach it from the terminal
+daemonizer is program to start a process and detach it from the terminal
 
 %prep
 %setup
@@ -36,5 +36,6 @@ daemonizer is a program to start a process and detach it from the terminal
 %attr(0755, root, root) %{_prefix}/bin/daemonizer
 
 %changelog
-* Thu Apr 17 2008 Matteo Corti <matteo.corti@id.ethz.ch> - @PACKAGE_VERSION@-0
-- Initial package file
+* Thu Apr 17 2008 Matteo Corti <matteo.corti@id.ethz.ch> - 0.9.0-0
+- Initial package
+
