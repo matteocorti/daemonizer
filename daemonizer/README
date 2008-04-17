@@ -1,0 +1,5 @@
+daemonizer is program to start a process and detach it from the terminal
+
+daemonizer is distributed under the Apache 2.0 license. See COPYING for more information
+
+The INSTALL file describes how to install daemonizer

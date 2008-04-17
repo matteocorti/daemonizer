@@ -12,27 +12,46 @@
   You may obtain a copy of the License at:
   http://www.apache.org/licenses/LICENSE-2.0
 
-  Define symbols and (words)
-  XC ...........  eXeCutable
-  rv ...........  return value
-  ts ...........  temporary string
 */
+
+/*
+
+RCS information
+enable substitution with:
+ $ svn propset svn:keywords "Id Revision HeadURL Source Date"
+
+ $Id$
+ $Revision$
+ $HeadURL$
+ $Date: 2008-03-21 12:36:09 +0100 (Fri, 21 Mar 2008)$
+ 
+*/
+
+/**
+ * @file   daemonizer.c
+ * @author John Kelly, Matteo Corti
+ * @brief  the main daemonizer program file
+ */
+
+/* splint: check with
+ * $ splint +posixlib -unrecog -immediatetrans -observertrans -shadow -nestedextern -temptrans ./daemonizer.c
+ */
 
 #include "daemonizer.h"
 
-#define LOGTIME(ts) logtime ((ts), sizeof ((ts)))
-
-static int version_flag = FALSE; /**< command line argument: version        */
+static int clearenv_flag = FALSE; /**< command line argument: clear   */
+static int version_flag  = FALSE; /**< command line argument: version */
 
 /**
  * Prints the program's usage
  */
-void usage() {
+static void usage() {
   
   printf("\nusage: %s [OPTION] program [ARGUMENTS]\n\n", PACKAGE_NAME);
-  printf("Starts the specified program (full path) with the optional arguments detaching it\n");
+  printf("Starts the specified program with the optional arguments detaching it\n");
   printf("from the current terminal\n\n");
   printf("Options\n");
+  printf(" -c, --clear        clear environment variables\n");
   printf(" -h, --help         show this help screen\n");
   printf(" -l, --log          log file\n");
   printf("     --version      prints the program version and exits\n");
@@ -43,45 +62,52 @@ void usage() {
 /** Default signal handler
  * @param   number  signal number
  */
-void catchsig ( int signal_number ) {
+static void catchsig ( int signal_number ) {
   printf ("Caught signal %d\n", signal_number);
-  fflush (NULL);
+  if (fflush (NULL) < 0) {
+    fprintf (stderr, "Error: failure flushing STDIO stream: %s\n",
+             strerror (errno));
+    exit (EXIT_FAILURE);
+  }
   if (signal_number == SIGSEGV) {
     exit (EXIT_FAILURE);
   }
 }
 
 
-char *logtime (
-               char *ts,
-               size_t sz
-               ) {
-  int rv;
-  time_t es;
-  struct tm *dt;
+/** Generates a string with the date and time
+ * @param   string  string which will hold the timestamp
+ * @param   len     length of the string
+ * @return          the string with the timestamp
+ */
+static /*@null@*/ char * logtime ( /*@out@*/ char * string, size_t len) {
 
-  if (sz < 2) {
+  size_t written_chars;
+  time_t epoch;
+  struct tm *broken_down_time;
+
+  if (len < 2) {
     errno = EINVAL;
     perror ("logtime");
-    ts = NULL;
+    string = NULL;
   } else {
-    es = time (NULL);
-    if (!(dt = localtime (&es))) {
-      ts[0] = '?';
-      ts[1] = '\0';
+    epoch = time (NULL);
+    if (!(broken_down_time = localtime (&epoch))) {
+      string[0] = '?';
+      string[1] = '\0';
       errno = EPROTO;
       perror ("logtime");
     } else {
-      rv = strftime (ts, sz, "%a %b %d %Y %H:%M:%S", dt);
-      if (rv == 0) {
-        ts[0] = '?';
-        ts[1] = '\0';
+      written_chars = strftime (string, len, "%a %b %d %Y %H:%M:%S", broken_down_time);
+      if (written_chars == 0) {
+        string[0] = '?';
+        string[1] = '\0';
         errno = EOVERFLOW;
         perror ("logtime");
       }
     }
   }
-  return ts;
+  return string;
 }
 
 /**
@@ -101,7 +127,7 @@ int main ( int argc, char ** argv ) {
   int     arguments_number = 0;
   
   /* the optional log file */
-  char * log_file = "/var/log/daemonizer";
+  static char * log_file = "/var/log/daemonizer";
 
   /* the search path */
   char * path     = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin";
@@ -116,32 +142,35 @@ int main ( int argc, char ** argv ) {
   int status;
 
   /* generic file descriptor */
-  uint32_t fd;
+  int fd;
 
+  /* string to hold the timestamps */
+  char timestamp[512];
+  
   int flags;
-  long open_max;
+  int open_max;
   mode_t mode;
   char **ev;
   extern char **environ;
-  char ts[512];
   struct flock mylock;
   struct sigaction signow;
   
   /* Process command line options */
-
-  while (TRUE) {
+  
+  for(;;) {
 
     static struct option long_options[] = {
-      {"log",         required_argument, NULL, 'l'},
+      {"clear",       no_argument,       NULL, (int)'c'},
+      {"log",         required_argument, NULL, (int)'l'},
       {"version",     no_argument,       &version_flag, TRUE},
-      {"help",        no_argument,       NULL, 'h'},
+      {"help",        no_argument,       NULL, (int)'h'},
       {NULL, 0, NULL, 0}
     };
 
     /* getopt_long stores the option index here. */
     int option_index = 0;
      
-    c = getopt_long (argc, argv, "hl:",
+    c = getopt_long (argc, argv, "chl:",
 		     long_options, &option_index);
     
     /* Detect the end of the options. */
@@ -149,6 +178,10 @@ int main ( int argc, char ** argv ) {
       break;
      
     switch (c) {
+
+    case 'c':
+      clearenv_flag = TRUE;
+      break;
       
     case 'h':
       usage();
@@ -236,12 +269,15 @@ int main ( int argc, char ** argv ) {
     } else {
 
       /* set the umask: write access for the owner only 022 */
-      umask ( S_IWGRP | S_IWOTH );
+      (void)umask ( S_IWGRP | S_IWOTH );
 
       /* signal handlers */
       
       signow.sa_handler = catchsig;
-      sigemptyset (&signow.sa_mask);
+      if (sigemptyset (&signow.sa_mask) < 0) {
+        perror ("failure initializing signal set");
+        exit (EXIT_FAILURE);
+      }
       signow.sa_flags = 0;
       if (sigaction (SIGHUP, &signow, NULL) < 0) {
         perror ("failure initializing SIGHUP handler");
@@ -261,7 +297,7 @@ int main ( int argc, char ** argv ) {
       }
 
       /* get the maximum number of open files per user id */
-      if ((open_max = sysconf (_SC_OPEN_MAX)) < 0) {
+      if ((open_max = (int)sysconf (_SC_OPEN_MAX)) < 0) {
         perror ("failure querying _SC_OPEN_MAX");
         exit (EXIT_FAILURE);
       }
@@ -296,11 +332,11 @@ int main ( int argc, char ** argv ) {
       }
 
       /* lock the log file */
-      mylock.l_type = F_WRLCK;
-      mylock.l_whence = SEEK_SET;
-      mylock.l_start = 0;
-      mylock.l_len = 1;
-      mylock.l_pid = 0;
+      mylock.l_type   = (short int)F_WRLCK;
+      mylock.l_whence = (short int)SEEK_SET;
+      mylock.l_start  = 0;
+      mylock.l_len    = 1;
+      mylock.l_pid    = 0;
       if (fcntl (STDOUT_FILENO, F_SETLK, &mylock) < 0) {
         perror ("failure locking LOGFILE");
         exit (EXIT_FAILURE);
@@ -346,8 +382,13 @@ int main ( int argc, char ** argv ) {
       }
 
       /* log: success */
-      printf ("%s success starting pid %d\n", LOGTIME (ts), getpid ());
-
+      if (logtime(timestamp, sizeof(timestamp)) != NULL) {
+        printf ("%s success starting pid %d\n", timestamp, (int)getpid ());
+      } else {
+        printf ("failure setting generating timestamps\n");
+        exit (EXIT_FAILURE);
+      }
+        
       /* flush all open output streams */
       if (fflush (NULL) < 0) {
         printf ("failure flushing STDIO stream: %s\n",
@@ -355,13 +396,22 @@ int main ( int argc, char ** argv ) {
         exit (EXIT_FAILURE);
       }
       
+      if (clearenv_flag == TRUE) {
 #ifdef HAVE_CLEARENV
-      if (clearenv () != 0) {
-        printf ("failure clearing environment\n");
-        exit (EXIT_FAILURE);
-      }
+        if (clearenv () != 0) {
+          printf ("failure clearing environment\n");
+          exit (EXIT_FAILURE);
+        }
+#else
+        /* from the clearenv man page:
+         *   If it is unavailable the assignment
+         *     environ = NULL;
+         * will probably do.
+         */
+        environ = NULL;
 #endif
-
+      }
+      
       /* set the PATH environment variable */
       if (setenv ("PATH", path, 1) < 0) {
         printf ("failure setting PATH: %s\n", strerror (errno));
@@ -374,10 +424,17 @@ int main ( int argc, char ** argv ) {
         exit (EXIT_FAILURE);
       }
 
-      
-      for (ev = environ; ev && *ev; ev++) {
-        printf ("%s %s\n", LOGTIME (ts), *ev);
+
+      /* log the environment variables */
+      for (ev = environ; (ev != NULL) && (*ev != NULL); ev++) {
+        if (logtime(timestamp, sizeof(timestamp))) {
+          printf ("%s %s\n", timestamp, *ev);
+        } else {
+          printf ("failure setting generating timestamps\n");
+          exit (EXIT_FAILURE);
+        }          
       }
+
       if (fflush (NULL) < 0) {
         printf ("failure flushing STDIO stream: %s\n",
                 strerror (errno));
@@ -388,6 +445,7 @@ int main ( int argc, char ** argv ) {
         printf ("failure starting %s: %s\n", program, strerror (errno));
         exit (EXIT_FAILURE);
       }
+      
       exit (EXIT_SUCCESS);
     }
   }
