@@ -1,3 +1,4 @@
+
 /* Copyright (c) 2008  Matteo Corti
  * This file is part of daemonizer
  *
@@ -17,10 +18,11 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-int main( /*@unused@*/ int argc, /*@unused@*/ char ** argv) {
+int main( /* @unused@ */ int argc, /* @unused@ */ char **argv)
+{
 
   int counter = 0;
-  
+
   while (1) {
 
     fprintf(stdout, "running (out) %i\n", counter);
