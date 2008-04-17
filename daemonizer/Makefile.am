@@ -1,5 +1,6 @@
 bin_PROGRAMS = daemonizer
 noinst_PROGRAMS = testd
+
 daemonizer_CFLAGS  = -Wall $(AM_CLFAGS)
 daemonizer_SOURCES = daemonizer.c daemonizer.h
 
