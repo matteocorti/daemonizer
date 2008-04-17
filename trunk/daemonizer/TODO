@@ -1,6 +1,2 @@
  * Test with splint a valgdrind
- * Write the man page
- * Write the RPM spec file
- * Check if the specified program exists
  * Specify the log level via command line
- * Save (and reuse) rhe PATH from the calling environment
