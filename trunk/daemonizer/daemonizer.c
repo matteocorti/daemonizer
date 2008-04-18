@@ -1,3 +1,4 @@
+
 /*
  * This file is part of daemonizer and is released under the Apache 2.0 license
  * plese see the REAME, AUTHORS and COPYING files
@@ -144,10 +145,10 @@ int main(int argc, char **argv)
 /* string to hold the timestamps */
   char timestamp[512];
 
-  /* timeout for the wait ppid hack: see comment below */
+/* timeout for the wait ppid hack: see comment below */
   int timeout;
-  
-  /* ppid hack: see comment below */
+
+/* ppid hack: see comment below */
   pid_t ppid;
 
   int flags;
@@ -163,11 +164,11 @@ int main(int argc, char **argv)
   for (;;) {
 
     static struct option long_options[] = {
-      {"keep-environment", no_argument,       NULL, (int)'e'},
-      {"log",              required_argument, NULL, (int)'l'},
-      {"version",          no_argument,       &version_flag, TRUE},
-      {"help",             no_argument,       NULL, (int)'h'},
-      {NULL,               0,                 NULL, 0}
+      {"keep-environment", no_argument, NULL, (int)'e'},
+      {"log", required_argument, NULL, (int)'l'},
+      {"version", no_argument, &version_flag, TRUE},
+      {"help", no_argument, NULL, (int)'h'},
+      {NULL, 0, NULL, 0}
     };
 
 /* getopt_long stores the option index here. */
@@ -195,6 +196,7 @@ int main(int argc, char **argv)
 
     case '?':
       usage();
+
 /* getopt_long already printed an error message. */
       exit(EXIT_SUCCESS);
 
@@ -226,6 +228,7 @@ int main(int argc, char **argv)
 /* build the argument list */
 
   if (argc > optind) {
+
 /* the program has to be called with some command line arguments * (the first 
  * param, arguments[0] is the program itself) */
     arguments = &(argv[optind - 1]);
@@ -234,20 +237,20 @@ int main(int argc, char **argv)
 
   errno = 0;
 
-  /* fork 1 */
+/* fork 1 */
   pid = fork();
 
   if (pid < 0) {
 
-    /* fork 1: error */
+/* fork 1: error */
 
     perror("failure creating 1st child");
     exit(EXIT_FAILURE);
 
   } else if (pid > 0) {
 
-    /* fork 1: parent process */
-    
+/* fork 1: parent process */
+
     if (waitpid(pid, &status, 0) < 0) {
       perror("failure waiting for 1st child");
       exit(EXIT_FAILURE);
@@ -256,8 +259,8 @@ int main(int argc, char **argv)
 
   } else {
 
-    /* fork 1: child process */
-    
+/* fork 1: child process */
+
 /* create a new session (see setsid(2)) */
 
     if (setsid() < 0) {
@@ -265,26 +268,26 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
     }
 
-    /* fork 2 */
+/* fork 2 */
     pid = fork();
 
     if (pid < 0) {
 
-      /* fork 2: error */
+/* fork 2: error */
 
       perror("failure creating 2nd child");
       exit(EXIT_FAILURE);
 
     } else if (pid > 0) {
 
-      /* fork 2: parent process */
+/* fork 2: parent process */
 
       _exit(EXIT_SUCCESS);
 
     } else {
 
-      /* fork 2: child process */
-      
+/* fork 2: child process */
+
 /* set the umask: write access for the owner only 022 */
       (void)umask(S_IWGRP | S_IWOTH);
 
@@ -323,6 +326,7 @@ int main(int argc, char **argv)
       for (fd = 3; fd < open_max; fd++) {
 	if (close(fd) < 0) {
 	  if (errno == EBADF) {
+
 /* bad file descriptor */
 	    continue;
 	  }
@@ -416,6 +420,7 @@ int main(int argc, char **argv)
 	  exit(EXIT_FAILURE);
 	}
 #else
+
 /* from the clearenv man page: If it is unavailable the assignment environ =
  * NULL; will probably do. */
 	environ = NULL;
@@ -450,36 +455,36 @@ int main(int argc, char **argv)
 	exit(EXIT_FAILURE);
       }
 
-      /*
-       * The child of the final fork gets adopted by init, but not
-       * immediately. The kernel has to reap the parent first, and in
-       * the meantime, the child and parent are racing. So by the time
-       * you exec the target daemon, the adoption by init may not be
-       * complete, and ppid still shows the id of the dying parent.
-       *
-       * That has implications for the target daemon.
-       * See this debian bug report:
-       * http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=416179
-       *
-       * Hack:
-       *   we wait until the ppid is 1 with a timeout check
-       */
+/* 
+ * The child of the final fork gets adopted by init, but not
+ * immediately. The kernel has to reap the parent first, and in
+ * the meantime, the child and parent are racing. So by the time
+ * you exec the target daemon, the adoption by init may not be
+ * complete, and ppid still shows the id of the dying parent.
+ *
+ * That has implications for the target daemon.
+ * See this debian bug report:
+ * http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=416179
+ *
+ * Hack:
+ *   we wait until the ppid is 1 with a timeout check
+ */
 
       timeout = 0;
 
       ppid = getppid();
       while (ppid != 1 && timeout++ < 10) {
-        usleep(20);
-        ppid = getppid();
+	usleep(20);
+	ppid = getppid();
       }
 
       if (ppid != 1) {
-        printf("Child not adoped by init: timout reached\n");
-        exit(EXIT_FAILURE);
+	printf("Child not adoped by init: timout reached\n");
+	exit(EXIT_FAILURE);
       }
 
-      /* everything seems OK: let's start the daemon */
-      
+/* everything seems OK: let's start the daemon */
+
       if (execvp(program, arguments) < 0) {
 	printf("failure starting %s: %s\n", program, strerror(errno));
 	exit(EXIT_FAILURE);
@@ -488,4 +493,5 @@ int main(int argc, char **argv)
       exit(EXIT_SUCCESS);
     }
   }
+  
 }
