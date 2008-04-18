@@ -1,0 +1,12 @@
+
+Some notes:
+===========
+
+splint
+------
+
+check with
+
+  $ splint +posixlib -unrecog -immediatetrans -observertrans -shadow -nestedextern -temptrans ./daemonizer.c
+
+
