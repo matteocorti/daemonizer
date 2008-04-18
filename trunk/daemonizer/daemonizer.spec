@@ -1,4 +1,4 @@
-%define version 0.9.0
+%define version 0.9.1
 %define release 0
 %define name    daemonizer
 
@@ -36,6 +36,6 @@ daemonizer is program to start a process and detach it from the terminal
 %attr(0755, root, root) %{_prefix}/bin/daemonizer
 
 %changelog
-* Thu Apr 17 2008 Matteo Corti <matteo.corti@id.ethz.ch> - 0.9.0-0
+* Thu Apr 17 2008 Matteo Corti <matteo.corti@id.ethz.ch> - 0.9.1-0
 - Initial package
 
