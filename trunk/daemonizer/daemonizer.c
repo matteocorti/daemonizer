@@ -23,10 +23,6 @@ enable substitution with:
  * @brief  the main daemonizer program file
  */
 
-/* splint: check with
- * $ splint +posixlib -unrecog -immediatetrans -observertrans -shadow -nestedextern -temptrans ./daemonizer.c
- */
-
 #include "daemonizer.h"
 
 static int keepenv_flag = FALSE;  /**< keep environment variables   */
