@@ -1,19 +1,7 @@
-
 /*
-  Define author
-  John Kelly, October 6, 2007
-  Matteo Corti, March, 2008
-
-  Define copyright
-  Copyright John Kelly, 2007. All rights reserved.
-
-  Define license
-  Licensed under the Apache License, Version 2.0 (the "License");
-  you may not use this work except in compliance with the License.
-  You may obtain a copy of the License at:
-  http://www.apache.org/licenses/LICENSE-2.0
-
-*/
+ * This file is part of daemonizer and is released under the Apache 2.0 license
+ * plese see the REAME, AUTHORS and COPYING files
+ */
 
 /*
 
@@ -40,9 +28,9 @@ enable substitution with:
 
 #include "daemonizer.h"
 
-static int clearenv_flag = FALSE; /**< command line argument: clear   */
+static int keepenv_flag = FALSE;  /**< keep environment variables   */
 
-static int version_flag = FALSE;  /**< command line argument: version */
+static int version_flag = FALSE;  /**< version */
 
 /**
  * Prints the program's usage
@@ -55,10 +43,10 @@ static void usage()
     ("Starts the specified program with the optional arguments detaching it\n");
   printf("from the current terminal\n\n");
   printf("Options\n");
-  printf(" -c, --clear        clear environment variables\n");
-  printf(" -h, --help         show this help screen\n");
-  printf(" -l, --log          log file\n");
-  printf("     --version      prints the program version and exits\n");
+  printf(" -e, --keep-environment   keeps environment variables\n");
+  printf(" -h, --help               show this help screen\n");
+  printf(" -l, --log                log file\n");
+  printf("     --version            prints the program version and exits\n");
   printf("\nPlease see the %s(1) man page for full documentation\n\n",
 	 PACKAGE_NAME);
 
@@ -156,6 +144,12 @@ int main(int argc, char **argv)
 /* string to hold the timestamps */
   char timestamp[512];
 
+  /* timeout for the wait ppid hack: see comment below */
+  int timeout;
+  
+  /* ppid hack: see comment below */
+  pid_t ppid;
+
   int flags;
   int open_max;
   mode_t mode;
@@ -169,17 +163,17 @@ int main(int argc, char **argv)
   for (;;) {
 
     static struct option long_options[] = {
-      {"clear", no_argument, NULL, (int)'c'},
-      {"log", required_argument, NULL, (int)'l'},
-      {"version", no_argument, &version_flag, TRUE},
-      {"help", no_argument, NULL, (int)'h'},
-      {NULL, 0, NULL, 0}
+      {"keep-environment", no_argument,       NULL, (int)'e'},
+      {"log",              required_argument, NULL, (int)'l'},
+      {"version",          no_argument,       &version_flag, TRUE},
+      {"help",             no_argument,       NULL, (int)'h'},
+      {NULL,               0,                 NULL, 0}
     };
 
 /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv, "chl:", long_options, &option_index);
+    c = getopt_long(argc, argv, "ehl:", long_options, &option_index);
 
 /* Detect the end of the options. */
     if (c == -1)
@@ -187,8 +181,8 @@ int main(int argc, char **argv)
 
     switch (c) {
 
-    case 'c':
-      clearenv_flag = TRUE;
+    case 'e':
+      keepenv_flag = TRUE;
       break;
 
     case 'h':
@@ -208,6 +202,7 @@ int main(int argc, char **argv)
       break;
 
     default:
+      fprintf(stderr, "Internal error: cannot process option\n");
       abort();
     }
 
@@ -239,16 +234,21 @@ int main(int argc, char **argv)
 
   errno = 0;
 
+  /* fork 1 */
   pid = fork();
 
   if (pid < 0) {
+
+    /* fork 1: error */
 
     perror("failure creating 1st child");
     exit(EXIT_FAILURE);
 
   } else if (pid > 0) {
 
-    if (wait(&status) < 0) {
+    /* fork 1: parent process */
+    
+    if (waitpid(pid, &status, 0) < 0) {
       perror("failure waiting for 1st child");
       exit(EXIT_FAILURE);
     }
@@ -256,6 +256,8 @@ int main(int argc, char **argv)
 
   } else {
 
+    /* fork 1: child process */
+    
 /* create a new session (see setsid(2)) */
 
     if (setsid() < 0) {
@@ -263,19 +265,26 @@ int main(int argc, char **argv)
       exit(EXIT_FAILURE);
     }
 
+    /* fork 2 */
     pid = fork();
 
     if (pid < 0) {
+
+      /* fork 2: error */
 
       perror("failure creating 2nd child");
       exit(EXIT_FAILURE);
 
     } else if (pid > 0) {
 
+      /* fork 2: parent process */
+
       _exit(EXIT_SUCCESS);
 
     } else {
 
+      /* fork 2: child process */
+      
 /* set the umask: write access for the owner only 022 */
       (void)umask(S_IWGRP | S_IWOTH);
 
@@ -400,7 +409,7 @@ int main(int argc, char **argv)
 	exit(EXIT_FAILURE);
       }
 
-      if (clearenv_flag == TRUE) {
+      if (keepenv_flag == FALSE) {
 #ifdef HAVE_CLEARENV
 	if (clearenv() != 0) {
 	  printf("failure clearing environment\n");
@@ -441,6 +450,36 @@ int main(int argc, char **argv)
 	exit(EXIT_FAILURE);
       }
 
+      /*
+       * The child of the final fork gets adopted by init, but not
+       * immediately. The kernel has to reap the parent first, and in
+       * the meantime, the child and parent are racing. So by the time
+       * you exec the target daemon, the adoption by init may not be
+       * complete, and ppid still shows the id of the dying parent.
+       *
+       * That has implications for the target daemon.
+       * See this debian bug report:
+       * http://bugs.debian.org/cgi-bin/bugreport.cgi?bug=416179
+       *
+       * Hack:
+       *   we wait until the ppid is 1 with a timeout check
+       */
+
+      timeout = 0;
+
+      ppid = getppid();
+      while (ppid != 1 && timeout++ < 10) {
+        usleep(20);
+        ppid = getppid();
+      }
+
+      if (ppid != 1) {
+        printf("Child not adoped by init: timout reached\n");
+        exit(EXIT_FAILURE);
+      }
+
+      /* everything seems OK: let's start the daemon */
+      
       if (execvp(program, arguments) < 0) {
 	printf("failure starting %s: %s\n", program, strerror(errno));
 	exit(EXIT_FAILURE);

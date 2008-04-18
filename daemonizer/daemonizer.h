@@ -1,24 +1,27 @@
+/*
+ * This file is part of daemonizer and is released under the Apache 2.0 license
+ * plese see the REAME, AUTHORS and COPYING files
+ */
 
 /*
-    Define author
-        John Kelly, October 6, 2007
-        Matteo Corti, March, 2008
 
-    Define copyright
-        Copyright John Kelly, 2007. All rights reserved.
+RCS information
+enable substitution with:
+ $ svn propset svn:keywords "Id Revision HeadURL Source Date"
 
-    Define license
-        Licensed under the Apache License, Version 2.0 (the "License");
-        you may not use this work except in compliance with the License.
-        You may obtain a copy of the License at:
-        http://www.apache.org/licenses/LICENSE-2.0
-
-    Define symbols and (words)
-        XC ...........  eXeCutable
-        rv ...........  return value
-        tx ...........  temporary index
-        ts ...........  temporary string
+ $Id$
+ $Revision$
+ $HeadURL$
+ $Date: 2008-03-21 12:36:09 +0100 (Fri, 21 Mar 2008)$
+ 
 */
+
+/**
+ * @file   daemonizer.h
+ * @author John Kelly, Matteo Corti
+ * @brief  the main daemonizer program file
+ */
+
 
 #include <errno.h>
 #include <fcntl.h>
