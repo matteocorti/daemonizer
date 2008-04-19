@@ -1,5 +1,5 @@
-AC_INIT(daemonizer, 0.9.1, matteo.corti@gmail.com)
-AM_INIT_AUTOMAKE(daemonizer, 0.9.1, matteo.corti@gmail.com)
+AC_INIT(daemonizer, 0.9.2, matteo.corti@gmail.com)
+AM_INIT_AUTOMAKE(daemonizer, 0.9.2, matteo.corti@gmail.com)
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_HEADERS(config.h)
 
