@@ -1,7 +1,7 @@
 
 /*
  * This file is part of daemonizer and is released under the Apache 2.0 license
- * plese see the REAME, AUTHORS and COPYING files
+ * please see the REAME, AUTHORS and COPYING files
  */
 
 /*
