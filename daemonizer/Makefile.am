@@ -8,5 +8,4 @@ testd_CFLAGS  = -Wall $(AM_CLFAGS)
 testd_SOURCES = testd.c
 
 man_MANS = daemonizer.1
-EXTRA_DIST = $(man_MANS) daemonizer.spec DEVELOPMENT
-
+EXTRA_DIST = $(man_MANS) daemonizer.spec DEVELOPMENT LICENSE COPYRIGHT
