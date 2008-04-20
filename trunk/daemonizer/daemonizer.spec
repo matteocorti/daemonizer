@@ -1,4 +1,4 @@
-%define version 0.9.2
+%define version 0.9.3
 %define release 0
 %define name    daemonizer
 
