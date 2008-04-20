@@ -1,3 +1,8 @@
+2008-04-20  Matteo Corti  <matteo.corti@id.ethz.ch>
+
+	* daemonizer.c: option to specify a file where to write the deamonized
+			program's PID
+
 2008-04-18  Matteo Corti  <matteo.corti@id.ethz.ch>
 
 	* daemonizer.c: default is to keep the environment
