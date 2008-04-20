@@ -42,7 +42,8 @@ static void usage()
   printf("Options\n");
   printf(" -e, --keep-environment   keeps environment variables\n");
   printf(" -h, --help               show this help screen\n");
-  printf(" -l, --log                log file\n");
+  printf(" -l, --log=file           log file\n");
+  printf(" -p, --pid=file           PID file\n");
   printf("     --version            prints the program version and exits\n");
   printf("\nPlease see the %s(1) man page for full documentation\n\n",
 	 PACKAGE_NAME);
@@ -122,6 +123,12 @@ int main(int argc, char **argv)
 
 /* the optional log file */
   static char *log_file = "/var/log/daemonizer";
+  
+/* the optional pid file */
+  static char *pid_file;
+
+/* the file handler for the pid file */
+  FILE * pid_file_stream;
 
 /* the search path */
   char *path = "/sbin:/bin:/usr/sbin:/usr/bin:/usr/local/sbin:/usr/local/bin";
@@ -162,6 +169,7 @@ int main(int argc, char **argv)
     static struct option long_options[] = {
       {"keep-environment", no_argument, NULL, (int)'e'},
       {"log", required_argument, NULL, (int)'l'},
+      {"pid", required_argument, NULL, (int)'p'},
       {"version", no_argument, &version_flag, TRUE},
       {"help", no_argument, NULL, (int)'h'},
       {NULL, 0, NULL, 0}
@@ -170,7 +178,7 @@ int main(int argc, char **argv)
 /* getopt_long stores the option index here. */
     int option_index = 0;
 
-    c = getopt_long(argc, argv, "ehl:", long_options, &option_index);
+    c = getopt_long(argc, argv, "ehl:p:", long_options, &option_index);
 
 /* Detect the end of the options. */
     if (c == -1)
@@ -188,6 +196,10 @@ int main(int argc, char **argv)
 
     case 'l':
       log_file = optarg;
+      break;
+
+    case 'p':
+      pid_file = optarg;
       break;
 
     case '?':
@@ -396,8 +408,9 @@ int main(int argc, char **argv)
       }
 
 /* log: success */
+      pid = getpid();
       if (logtime(timestamp, sizeof(timestamp)) != NULL) {
-	printf("%s success starting pid %d\n", timestamp, (int)getpid());
+	printf("%s success starting pid %d\n", timestamp, (int)pid);
       } else {
 	printf("failure setting generating timestamps\n");
 	exit(EXIT_FAILURE);
@@ -479,8 +492,30 @@ int main(int argc, char **argv)
 	exit(EXIT_FAILURE);
       }
 
-/* everything seems OK: let's start the daemon */
+      if (pid_file != NULL) {
+        
+/* write the PID */
 
+        pid_file_stream = fopen(pid_file, "w");
+        if (pid_file_stream == NULL) {
+          perror("failure opening pid file: ");
+          exit(EXIT_FAILURE);
+        }
+
+        if (fprintf(pid_file_stream, "%i\n", (int)pid) < 0) {
+          perror("failure writing PID to pid file: ");
+          exit(EXIT_FAILURE);
+        }          
+        
+        if (fclose(pid_file_stream) != 0) {
+          perror("failure closing pid file: ");
+          exit(EXIT_FAILURE);
+        }
+        
+      }
+      
+/* everything seems OK: let's start the daemon */
+      
       if (execvp(program, arguments) < 0) {
 	printf("failure starting %s: %s\n", program, strerror(errno));
 	exit(EXIT_FAILURE);
