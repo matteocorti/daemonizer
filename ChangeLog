@@ -1,3 +1,7 @@
+2015-10-30  Matteo Corti  <matteo@corti.i>
+
+	* daemonizer.c: applied patch from Jan Hacker for OS X
+
 2008-04-20  Matteo Corti  <matteo.corti@id.ethz.ch>
 
 	* daemonizer.c: option to specify a file where to write the deamonized
@@ -9,7 +13,7 @@
 	* daemonizer.c: wait() substituted with waitpid (waiting for the
 	                right child).
 	* daemonizer.c:	wait to get adopted by init before executing
-	
+
 2008-04-17  Matteo Corti  <matteo.corti@id.ethz.ch>
 
 	* daemonizer.c: command line option --clear to optionally clear

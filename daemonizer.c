@@ -4,19 +4,6 @@
  * please see the REAME, AUTHORS and COPYING files
  */
 
-/*
-
-RCS information
-enable substitution with:
- $ svn propset svn:keywords "Id Revision HeadURL Source Date"
-
- $Id$
- $Revision$
- $HeadURL$
- $Date: 2008-03-21 12:36:09 +0100 (Fri, 21 Mar 2008)$
- 
-*/
-
 /**
  * @file   daemonizer.c
  * @author John Kelly, Matteo Corti
@@ -432,8 +419,30 @@ int main(int argc, char **argv)
 
 /* from the clearenv man page: If it is unavailable the assignment environ =
  * NULL; will probably do. */
+/* Doing so on OS X will cause a segfault - its environ(7) manpage only states:
+   Direct access can be made through the global variable environ,
+   though it is recommended that changes to the enviroment still be made
+   through the environment routines.
+*/
+#ifdef __APPLE__
+  if (environ != NULL) {
+    int i = 0;
+    for (ev = environ; (ev != NULL) && (*ev != NULL); ev++) {
+      char* var = strsep(ev,"=");
+      // this should unset the envvar, however environ remains unaffected?
+      if (unsetenv(var) != 0) {
+        printf("failure clearing environment\n");
+        exit(EXIT_FAILURE);
+      }
+      // ensure it is unset
+      environ[i] = NULL;
+      i++;
+    }
+  }
+#else
 	environ = NULL;
-#endif
+#endif // __APPLE__
+#endif // __HAVE_CLEARENV__
       }
 
 /* set the PATH environment variable */
