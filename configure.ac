@@ -1,5 +1,7 @@
-AC_INIT(daemonizer, 0.9.4, matteo@corti.li)
-AM_INIT_AUTOMAKE(daemonizer, 0.9.4, matteo@corti.li)
+AC_INIT([daemonizer], [0.9.4])
+AC_CONFIG_SRCDIR([daemonizer.c])
+AM_INIT_AUTOMAKE
+
 AC_CONFIG_FILES(Makefile)
 AC_CONFIG_HEADERS(config.h)
 
