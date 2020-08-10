@@ -1,4 +1,5 @@
 language: c
 script:
+    - ./regen.sh
     - ./configure
     - make
