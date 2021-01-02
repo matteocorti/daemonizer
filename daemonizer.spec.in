@@ -1,11 +1,13 @@
 %define version @PACKAGE_VERSION@
 %define release 0
 %define name    daemonizer
+%define packagename daemonizer
+%define sourcename  daemonizer
 
 Summary:   daemonizer is program to start a process and detach it from the terminal
 Name:      %{name}
 Version:   %{version}
-Release:   %{release}
+Release:   %{release}%{?dist}
 License:   Apache
 Packager:  Matteo Corti <matteo.corti@gmail.com>
 Group:     Applications/System
