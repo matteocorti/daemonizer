@@ -421,7 +421,7 @@ int main(int argc, char **argv)
  * NULL; will probably do. */
 /* Doing so on OS X will cause a segfault - its environ(7) manpage only states:
    Direct access can be made through the global variable environ,
-   though it is recommended that changes to the enviroment still be made
+   though it is recommended that changes to the enviromment still be made
    through the environment routines.
 */
 #ifdef __APPLE__
@@ -497,7 +497,7 @@ int main(int argc, char **argv)
       }
 
       if (ppid != 1) {
-	printf("Child not adoped by init: timout reached\n");
+	printf("Child not adoped by init: timeout reached\n");
 	exit(EXIT_FAILURE);
       }
 

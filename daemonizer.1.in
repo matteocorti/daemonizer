@@ -26,7 +26,7 @@ Specifies a file where to write the program's PID
 .B \--version
 prints the version of the program
 .SH EXAMPLE
-To start a program ("example") as a deamon:
+To start a program ("example") as a daemon:
 .IP
 $ daemonizer \\
    --log /var/log/daemonizer.log \\

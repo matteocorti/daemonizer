@@ -1,6 +1,6 @@
-2015-10-30	Applied OS X patch from Jan Hacker
-2008-04-20      Added an option (-p,--pid) to specify a file where to write the
-                daemon PID
-2008-04-18      The environment get's cleared by default. Fixed two bugs related
-                to process management (see the ChangeLog)
-2008-04-17      Initial beta release
+2015-10-30 Applied OS X patch from Jan Hacker
+2008-04-20 Added an option (-p,--pid) to specify a file where to write the
+           daemon PID
+2008-04-18 The environment gets cleared by default. Fixed two bugs related
+           to process management (see the ChangeLog)
+2008-04-17 Initial beta release

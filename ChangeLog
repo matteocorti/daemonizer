@@ -4,7 +4,7 @@
 
 2008-04-20  Matteo Corti  <matteo.corti@id.ethz.ch>
 
-	* daemonizer.c: option to specify a file where to write the deamonized
+	* daemonizer.c: option to specify a file where to write the daemonized
 			program's PID
 
 2008-04-18  Matteo Corti  <matteo.corti@id.ethz.ch>
@@ -25,7 +25,7 @@
 	* daemonizer.c: command line arguments to specify the program (with
 	                arguments) to daemonize
 	* daemonizer.c: removed chdir("/") since it had a user-hidden effect on
-                        the location of the spefied log file
+                        the location of the specified log file
 	* daemonizer.c: added some comments (Doxygen style)
 	* Makefile.am:  automake file
 	* configure.ac: file to generate the configure script (tests for header
