@@ -105,9 +105,6 @@ int main(int argc, char **argv)
 /* the list of command line arguments */
   char **arguments = NULL;
 
-/* number of command line arguments */
-  int arguments_number = 0;
-
 /* the optional log file */
   static char *log_file = "/var/log/daemonizer";
   
@@ -227,7 +224,6 @@ int main(int argc, char **argv)
 /* the program has to be called with some command line arguments * (the first 
  * param, arguments[0] is the program itself) */
     arguments = &(argv[optind - 1]);
-    arguments_number = argc - optind;
   }
 
   errno = 0;
