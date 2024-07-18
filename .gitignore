@@ -1,0 +1,15 @@
+.DS_Store
+.deps/
+Makefile
+VERSION
+autom4te.cache/
+config.h
+config.log
+config.status
+daemonizer
+daemonizer-daemonizer.o
+daemonizer.1
+daemonizer.spec
+stamp-h1
+testd
+testd-testd.o
